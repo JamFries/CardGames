@@ -4,6 +4,10 @@ from Card import Card
 class Deck:
     def __init__(self, suits, ranks):
         self.cards = []
+
+        self.suits = suits
+        self.ranks = ranks
+
         for i in suits:
             for j in ranks:
                 self.cards.append(Card(i, j))

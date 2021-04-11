@@ -1,6 +1,7 @@
 from Player import Player
 from Deck import Deck
 from Card import Card
+import copy
 
 # Implement Blackjack (https://bicyclecards.com/how-to-play/blackjack/)
 class Blackjack:
@@ -9,8 +10,11 @@ class Blackjack:
         self.players = []
         self.actionablePlayers = []
 
+        self.initSuits = deck.suits
+        self.initRanks = deck.ranks
+
     def startGame(self, players):
-        initialDeck = self.deck
+        self.deck = self.createNewDeck(self.initSuits, self.initRanks) # Creates a brand new deck to play each round
         print("Blackjack Game Begin")
 
         self.players = players #Get the list of players
@@ -173,70 +177,13 @@ class Blackjack:
                     winners.append((players[i], playerScore, 'w'))
 
         if tieExists:
-            winners.append((players[len(players) - 1], dealerScore, 't'))
+            winners.append((players[len(players) - 1], dealerScore, 't')) # A tie only exists with the dealer so add them
+
+        if (len(winners) == 0): # If the list is empty by this point, it means the dealer had the highest value of all
+            winners.append((players[len(players) - 1], dealerScore), 'w') # The dealer won
 
         return winners # Return list of tuples (player, int, char)
 
-
-        # Old Code Below
-        # dealerScore = self.determineDealerScore(players[len(players) - 1])
-        # dealerWinner = (players[len(players) - 1], dealerScore)
-        # winners.append(dealerWinner)
-        #
-        # for i in range(0, len(players) - 2):
-        #     blackjackScore_One = 21 - players[i].gameScore_One
-        #     blackjackScore_Two = 21 - players[i].gameScore_Two
-        #     blackjackScore = -99999 # both busts
-        #
-        #     if (blackjackScore_One >= 0 and blackjackScore_Two >= 0): # no busts
-        #         blackjackScore = min(blackjackScore_One, blackjackScore_Two)
-        #     elif (blackjackScore_One >= 0 and blackjackScore_Two < 0): # one bust (ace calculation)
-        #         blackjackScore = blackjackScore_One
-        #     elif (blackjackScore_One < 0 and blackjackScore_Two >= 0): # one bust (ace calculation)
-        #         blackjackScore = blackjackScore_Two
-        #
-        #     winPlayer, winScore = winners[0]
-        #
-        #     if (blackjackScore > winScore and blackjackScore >= 0): #player has worse than another player
-        #         if (dealerScore == 999): #but dealer busted
-        #             winners.append((players[i], blackjackScore)) # so they win anyway
-        #             try:
-        #                 winners.remove(dealerWinner) # Remove the dealer from the winners
-        #             except ValueError:
-        #                 pass
-        #         else: #otherwise check if the dealer has a higher score than them
-        #             if (blackjackScore < dealerScore):
-        #                 winners.append((players[i], blackjackScore))  # so they win anyway
-        #                 try:
-        #                     winners.remove(dealerWinner)  # Remove the dealer from the winners
-        #                 except ValueError:
-        #                     pass
-        #             elif (blackjackScore == dealerScore):
-        #                 winners.append((players[i], blackjackScore)) #they tied with the dealer
-        #             else:
-        #                 pass # they still lost to the dealer
-        #
-        #
-        #     if (blackjackScore < winScore and blackjackScore >= 0): # Remove all others from list
-        #         if (dealerScore == 999): # Dealer busted so they win regardless of their score being less than someone elses
-        #             winners.append((players[i], blackjackScore))
-        #             try:
-        #                 winners.remove(dealerWinner) # Remove the dealer from the winners
-        #             except ValueError:
-        #                 pass
-        #         else:
-        #             # Otherwise the dealer didnt bust, in which case
-        #             winners.append((players[i], blackjackScore))
-        #             try:
-        #                 winners.remove(dealerWinner) # Remove the dealer from the winners
-        #             except ValueError:
-        #                 pass
-        #     elif (blackjackScore == winScore and blackjackScore >= 0): # Add to list of winners (tie)
-        #         winners.append((players[i], blackjackScore))
-        #     else:
-        #         pass # move on, that person didnt win
-        #
-        # return winners
 
     def determineDealerScore(self, dealer):
         blackjackScore_One = 21 - dealer.gameScore_One
@@ -326,3 +273,10 @@ class Blackjack:
                 print("See you later, " + str(self.players[i].username))
 
         return replayers
+
+    # Function to create a fresh deck based on the suits/ranks that were from the deck passed through to the game
+    # (idk exactly how python memory works this might cause memory problems)
+    # (if so then manually delete old decks before creating new ones but for now w/e)
+    def createNewDeck(self, suits, ranks):
+        retVal = Deck(suits, ranks)
+        return retVal
