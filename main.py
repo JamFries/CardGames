@@ -1,5 +1,3 @@
-import numpy
-import random
 from Deck import Deck
 from Player import Player
 from Blackjack import Blackjack

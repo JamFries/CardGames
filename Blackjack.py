@@ -4,13 +4,13 @@ from Card import Card
 
 # Implement Blackjack (https://bicyclecards.com/how-to-play/blackjack/)
 class Blackjack:
-    def __init__(self, deck, numOfPlayers=1):
+    def __init__(self, deck):
         self.deck = deck
         self.players = []
         self.actionablePlayers = []
-        self.numOfPlayers = numOfPlayers
 
     def startGame(self, players):
+        initialDeck = self.deck
         print("Blackjack Game Begin")
 
         self.players = players #Get the list of players
@@ -20,8 +20,8 @@ class Blackjack:
         for player in self.players:
             player.resetGameScore()
 
-        initialDeck = self.deck  # Make a copy of the deck to reset back to
         self.deck.shuffle() #Shuffle the deck
+        print("Deck Size: " + str(len(self.deck.cards)))
         print("Deck Shuffled")
 
         self.initialDeal() # Deal cards to each player
@@ -67,6 +67,11 @@ class Blackjack:
                 print(str(p.username) + " won with a score of " + str(score))
             elif (result == 't'):
                 print(str(p.username) + " tied with a score of " + str(score))
+
+        # Prompt to play again
+        replayers = self.promptPlayersToPlayAgain()
+        if (len(replayers) > 0):
+            self.startGame(replayers) # Run it back with the replayers
 
     # Function does the initial deal in blackjack: 2 rounds around the table with 1 card face-down for the dealer
     def initialDeal(self):
@@ -304,3 +309,20 @@ class Blackjack:
             return score1
         else:
             return score2
+
+    def promptPlayersToPlayAgain(self):
+        replayers = []
+        for i in range(0, len(self.players) - 1, 1):
+            print(str(self.players[i].username) + ", would you like to play again?\n")
+            print("Type 'Yes' or 'No'")
+            response = input()
+            while (response != 'Yes' and response != 'No'):
+                print("Invalid Response\n")
+                print("Type 'Yes' or 'No'")
+                response = input()
+            if (response == 'Yes'):
+                replayers.append(self.players[i])
+            else:
+                print("See you later, " + str(self.players[i].username))
+
+        return replayers
