@@ -15,6 +15,13 @@ class Blackjack:
 
     def startGame(self, players):
         self.deck = self.createNewDeck(self.initSuits, self.initRanks) # Creates a brand new deck to play each round
+
+        # Reset the player cards/scores for each playthrough
+        for player in players:
+            player.cards = []
+            player.gameScore_One = 0
+            player.gameScore_Two = 0
+
         print("Blackjack Game Begin")
 
         self.players = players #Get the list of players
@@ -180,7 +187,7 @@ class Blackjack:
             winners.append((players[len(players) - 1], dealerScore, 't')) # A tie only exists with the dealer so add them
 
         if (len(winners) == 0): # If the list is empty by this point, it means the dealer had the highest value of all
-            winners.append((players[len(players) - 1], dealerScore), 'w') # The dealer won
+            winners.append((players[len(players) - 1], dealerScore, 'w')) # The dealer won
 
         return winners # Return list of tuples (player, int, char)
 
