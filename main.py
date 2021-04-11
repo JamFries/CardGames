@@ -20,7 +20,7 @@ color_buttonDark = (100, 100, 100)
 width = screen.get_width()
 height = screen.get_height()
 
-
+blackjackGameBegin = False
 gameState = 0 # Track what to draw on the pygame screen depending on user action
 # 0: draw the blackjack menu
 # 1: draw the playerCount menu
@@ -149,6 +149,9 @@ def drawBeginButton(screen):
 
     return pygame.Rect(buttonLeft, buttonTop, buttonWidth, buttonHeight)
 
+
+
+
 running = True
 while (running):
     for event in pygame.event.get():
@@ -171,10 +174,16 @@ while (running):
                     if onePlayerRect.collidepoint(event.pos):
                         print("1 Player was clicked")
                         gameState = 2 # Set the next gameState
-                        deck = createStandardDeck() # Make a deck of cards for the game
-                        p1 = Player("Player 1") # Make one player
-                        b1 = BlackjackForGUI(deck) # Make a blackjack instance
-                        b1.startGame([p1]) # Start the game with the number of players
+                        # deck = createStandardDeck() # Make a deck of cards for the game
+                        # p1 = Player("Player 1") # Make one player
+                        # b1 = BlackjackForGUI(deck, screen) # Make a blackjack instance
+                elif (gameState == 2):
+                    # Check if begin button was clicked
+                    if beginRect.collidepoint(event.pos):
+                        print("Begin was clicked")
+                        blackjackGameBegin = True
+                        # start the game with list of players (figure out later how to pass parameters onwards for this)
+                        # b1.startGame([p1])
 
 
 
@@ -194,7 +203,22 @@ while (running):
         onePlayerRect = drawOnePlayerButton(screen)
 
     elif (gameState == 2): # Blackjack Game screen
-        beginRect = drawBeginButton(screen)
+        deck = createStandardDeck() # Make a deck of cards for the game
+        p1 = Player("Player 1") # Make one player
+        b1 = BlackjackForGUI(deck, screen) # Make a blackjack instance
+
+        if blackjackGameBegin == False:
+            beginRect = drawBeginButton(screen) # only draw it when the game hasn't begun yet
+        # Draw the game elements onto the screen (cards, score, hit/stand, etc)
+        else:
+            playAgainChoice = b1.startGame([p1]) # might need to implement this inside main to draw correctly within the game
+            # This is because hit and stand buttons cant update because the loop stops here
+            if (playAgainChoice == True):
+                # b1 = BlackjackForGUI(deck, screen)
+                # b1.startGame([p1])
+                gameState = 2 # just keep gamestate the same to reinitialize objects
+            else: # don't play again, exit
+                gameState = 0 # Return to the menu
 
     pygame.display.update()
 

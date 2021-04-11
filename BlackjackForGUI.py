@@ -3,12 +3,16 @@ from Deck import Deck
 from Card import Card
 import copy
 
+import pygame
+
 # Implement Blackjack (https://bicyclecards.com/how-to-play/blackjack/)
 class BlackjackForGUI:
-    def __init__(self, deck):
+    def __init__(self, deck, screen):
         self.deck = deck
         self.players = []
         self.actionablePlayers = []
+
+        self.screen = screen # needs access to the screen(from pygame) to draw on
 
         self.initSuits = deck.suits
         self.initRanks = deck.ranks
@@ -36,6 +40,10 @@ class BlackjackForGUI:
         print("Deck Shuffled")
 
         self.initialDeal() # Deal cards to each player
+        # draw rectangles (cards) for each player after they have been dealt
+        self.drawPlayerCards(self.screen)
+        pygame.display.update()
+
 
         # Create a list of players that have 'actions' (excludes dealer/people that stand)
         self.actionablePlayers = self.players.copy() #Use list.copy() to actually copy data in memory
@@ -44,6 +52,9 @@ class BlackjackForGUI:
         for player in self.actionablePlayers:
             self.calculateScore(player)
             self.showScore(player)
+
+        self.drawPlayerScore() #Draws text on score of each player's score
+        pygame.display.update()
 
         # Get input from player on what the next thing to do is
         while (len(self.actionablePlayers) > 0):
@@ -54,35 +65,74 @@ class BlackjackForGUI:
                 lengthOfActionablePlayers = len(self.actionablePlayers)
                 while (len(self.actionablePlayers) == lengthOfActionablePlayers):
 
-                    for card in player.cards:
-                        print(card.showAsString())
+                    # Draw buttons for hit and stand
+                    hitRect = self.drawHitButton()
+                    standRect = self.drawStandButton()
+                    pygame.display.update()
 
-                    print("Type 'hit' or 'stand'")  # temporary implementation until gui
-                    userInput = input()
-                    if userInput == "hit":
-                        self.hit(player)
-                    elif userInput == "stand":
-                        self.stand(player)
-                    else:
-                        print("Wrong input, id normally account for this but its gonna be replaced by gui anyway")
+                    # for card in player.cards:
+                    #    print(card.showAsString())
+
+                    # print("Type 'hit' or 'stand'")  # temporary implementation until gui
+
+                    for event in pygame.event.get():
+                        if event.type == pygame.MOUSEBUTTONDOWN:
+                            if event.button == 1:
+                                if (hitRect.collidepoint(event.pos)):
+                                    print("Hit was clicked")
+                                    self.hit(player)
+                                    pygame.display.update()
+                                elif (standRect.collidepoint(event.pos)):
+                                    print("Stand was clicked")
+                                    self.stand(player)
+                                    pygame.display.update()
 
         # After all players have busted or chose stand
         dealer = self.players[len(self.players) - 1]
-        self.performDealerActions(dealer)
+        self.performDealerActions(dealer) # !pygame stuff was put in here!
 
         # After all game moves have finished, compare scores to see who won
         results = self.determineWinners(self.players)
-        for playerTuple in results:
-            p, score, result = playerTuple
-            if (result == 'w'):
-                print(str(p.username) + " won with a score of " + str(score))
-            elif (result == 't'):
-                print(str(p.username) + " tied with a score of " + str(score))
+
+        self.drawResults(results)
+        pygame.display.update()
+
+
+        playAgainRect = self.drawPlayAgainButton()
+        exitRect = self.drawExitButton()
+        pygame.display.update()
+
+        self.resetAllStats() #Reset all important information before beginning another round or not
+
+        while(1): # This will loop until the user selects either play again or exit
+            for event in pygame.event.get():
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if event.button == 1:
+                        if (playAgainRect.collidepoint(event.pos)):
+                            print("Play Again was clicked")
+                            pygame.display.update()
+                            return True # return true to play again
+                        elif (exitRect.collidepoint(event.pos)):
+                            print("Exit was clicked")
+                            pygame.display.update()
+                            return False
+            self.drawPlayAgainButton()
+            self.drawExitButton()
+            pygame.display.update() #called here to keep updating the button shading based on mouse position
+
+        # for playerTuple in results:
+        #     p, score, result = playerTuple
+        #     if (result == 'w'):
+        #         print(str(p.username) + " won with a score of " + str(score))
+        #
+        #     elif (result == 't'):
+        #         print(str(p.username) + " tied with a score of " + str(score))
 
         # Prompt to play again
-        replayers = self.promptPlayersToPlayAgain()
-        if (len(replayers) > 0):
-            self.startGame(replayers) # Run it back with the replayers
+        # replayers = self.promptPlayersToPlayAgain()
+
+        # if (len(replayers) > 0):
+        #     self.startGame(replayers) # Run it back with the replayers
 
     # Function does the initial deal in blackjack: 2 rounds around the table with 1 card face-down for the dealer
     def initialDeal(self):
@@ -116,13 +166,21 @@ class BlackjackForGUI:
     def hit(self, player):
         print("The player chose hit")
         card = self.deck.dealCard()
-        card.Hidden = False
+        card.hidden = False
         player.cards.append(card)
 
         print(card.showAsString())
+        self.drawPlayerCards(self.screen)
 
         self.calculateScore(player)
         self.showScore(player)
+
+        # quick-fix way to fix the fact that we arent screen.fill()-ing back in main because of b1.startGame() happening
+        self.screen.fill((0, 128, 0)) # Erase the contents drawn on screen
+        # Then redraw everything up to this point
+        self.drawPlayerCards(self.screen)
+        self.drawPlayerScore()
+        pygame.display.update()
 
         if (player.gameScore_One > 21 and player.gameScore_Two > 21): # The player busted
             try:
@@ -141,9 +199,16 @@ class BlackjackForGUI:
     # Function to play the dealer's hand until they stand or bust
     def performDealerActions(self, dealer):
         print("The dealer is now performing their actions")
-        dealer.cards[-1].Hidden = False # The dealer reveals their second card
+        dealer.cards[-1].hidden = False # The dealer reveals their second card
         self.calculateScore(dealer)
         self.showScore(dealer)
+
+        # quick-fix way to fix the fact that we arent screen.fill()-ing back in main because of b1.startGame() happening
+        self.screen.fill((0, 128, 0))
+        self.drawPlayerCards(self.screen)
+        self.drawPlayerScore()
+        pygame.display.update()
+
         for card in dealer.cards:
             print(card.showAsString())
 
@@ -287,3 +352,278 @@ class BlackjackForGUI:
     def createNewDeck(self, suits, ranks):
         retVal = Deck(suits, ranks)
         return retVal
+
+
+    def drawPlayerCards(self, screen):
+        #Draw cards in different locations depending on playerCount
+        if (len(self.players) == 2): # 1 player + dealer
+            width = screen.get_width()
+            height = screen.get_height()
+
+            cardWidth = 80
+            cardHeight = 140
+
+            # pygame rect() structure: left, top, width, height
+            cardLeft = (width / 2)  # middle of screen
+            cardTop = height - (height / 5)  # near the bottom
+
+            for player in self.players:
+                if player != self.players[len(self.players) - 1]: # If there not the dealer
+                    smallFont = pygame.font.SysFont('Arial', 24)
+
+                    for card in player.cards:
+                        cardImg = self.getCardAsSprite(card) # Get the image for the specific card
+                        screen.blit(cardImg, (cardLeft, cardTop))
+                        cardLeft += cardWidth
+
+                        # cardName = card.showAsString()
+                        # text = smallFont.render(cardName, True, (255, 255, 255))
+                        # textRect = text.get_rect(center=(cardLeft + (cardWidth / 2), cardTop + (cardHeight / 2)))  # textRect to center the text within the pygame.rect drawn
+                        #
+                        # pygame.draw.rect(screen, (100, 100, 100), [cardLeft, cardTop, cardWidth, cardHeight])
+                        # screen.blit(text, textRect)
+                        # cardLeft += cardWidth # Move the place to draw next card over by the width of one card
+                else:
+                    #Draw the dealer cards now
+                    cardLeft = (width / 2) # center the dealer
+                    cardTop = (height / 10) # dealer cards are at top of screen
+
+                    # smallFont = pygame.font.SysFont('Arial', 24)
+
+                    for card in player.cards:
+                        cardImg = self.getCardAsSprite(card)
+                        screen.blit(cardImg, (cardLeft, cardTop))
+                        cardLeft += cardWidth
+
+                        # if card.hidden == False:
+                        #     cardName = card.showAsString()
+                        #
+                        #     text = smallFont.render(cardName, True, (255, 255, 255))
+                        #     textRect = text.get_rect(center=(cardLeft + (cardWidth / 2), cardTop + (cardHeight / 2)))  # textRect to center the text within the pygame.rect drawn
+                        #     pygame.draw.rect(screen, (100, 100, 100), [cardLeft, cardTop, cardWidth, cardHeight])
+                        #     screen.blit(text, textRect)
+                        # else:
+                        #     pygame.draw.rect(screen, (100, 100, 100), [cardLeft, cardTop, cardWidth, cardHeight])
+                        # cardLeft += cardWidth  # Move the place to draw next card over by the width of one card
+
+
+    # Function that will take a card and return its sprite form to be used for the pygame window
+    def getCardAsSprite(self, card):
+        imgString = "images/"
+
+        if (card.hidden == True):
+            imgString += "Card-Back.png"
+            return pygame.image.load(imgString) # Hide the dealer's second card until its time to reveal it
+
+        if (card.rank == 1):
+            imgString += "Ace"
+        elif (card.rank == 2):
+            imgString += "Two"
+        elif (card.rank == 3):
+            imgString += "Three"
+        elif (card.rank == 4):
+            imgString += "Four"
+        elif (card.rank == 5):
+            imgString += "Five"
+        elif (card.rank == 6):
+            imgString += "Six"
+        elif (card.rank == 7):
+            imgString += "Seven"
+        elif (card.rank == 8):
+            imgString += "Eight"
+        elif (card.rank == 9):
+            imgString += "Nine"
+        elif (card.rank == 10):
+            imgString += "Ten"
+        elif (card.rank == 11):
+            imgString += "Jack"
+        elif (card.rank == 12):
+            imgString += "Queen"
+        elif (card.rank == 13):
+            imgString += "King"
+
+        if (card.suit == "Diamonds"):
+            imgString += "-D"
+        elif (card.suit == "Hearts"):
+            imgString += "-H"
+        elif (card.suit == "Clubs"):
+            imgString += "-C"
+        elif (card.suit == "Spades"):
+            imgString += "-S"
+
+        imgString += ".png"
+
+        return pygame.image.load(imgString) # Return the pygame image loaded from the card's corresponding image
+
+    def drawPlayerScore(self):
+        if (len(self.players) == 2): # 1 player + dealer
+            width = self.screen.get_width()
+            height = self.screen.get_height()
+            font = pygame.font.SysFont('Arial', 24)
+
+
+            for player in self.players:
+                if (player != self.players[len(self.players) - 1]): # If not the dealer
+                    playerOneScoreWidth = (width / 2) - 30
+                    playerOneScoreHeight = height - (height / 5) - 30
+
+                    if (player.gameScore_One == player.gameScore_Two):
+                        text = str(player.gameScore_One)
+                        scoreText = font.render(text, True, (255, 255, 255))
+                        self.screen.blit(scoreText, (playerOneScoreWidth, playerOneScoreHeight))
+                    else:
+                        text = str(player.gameScore_One) + " / " + str(player.gameScore_Two)
+                        scoreText = font.render(text, True, (255, 255, 255))
+                        self.screen.blit(scoreText, (playerOneScoreWidth, playerOneScoreHeight))
+                else: # Dealer score
+                    if (player.gameScore_One == 0): # Means this part of the game the card is hidden, dont draw for now
+                        pass
+                    else:
+                        if (player.gameScore_One == player.gameScore_Two):
+                            text = str(player.gameScore_One)
+                            scoreText = font.render(text, True, (255, 255, 255))
+                            self.screen.blit(scoreText,
+                                             ((width / 2) - 20, height / 10))  # -20 to width to make it close to cards
+                        else:
+                            text = str(player.gameScore_One) + " / " + str(player.gameScore_Two)
+                            scoreText = font.render(text, True, (255, 255, 255))
+                            self.screen.blit(scoreText,
+                                             ((width / 2) - 20, height / 10))  # -20 to width to make it close to cards
+
+
+    def drawHitButton(self):
+        width = self.screen.get_width()
+        height = self.screen.get_height()
+
+        buttonWidth = 140
+        buttonHeight = 40
+
+        # pygame rect() structure: left, top, width, height
+        buttonLeft = (width / 20)
+        buttonTop = (height / 2)
+
+        smallFont = pygame.font.SysFont('Arial', 35)
+        text = smallFont.render('Hit', True, (255, 255, 255))
+        textRect = text.get_rect(center=(buttonLeft + (buttonWidth/2), buttonTop + (buttonHeight/2))) #textRect to center the text within the pygame.rect drawn
+
+        mouse = pygame.mouse.get_pos()  # mouse[0] is mouse.x, mouse[1] is mouse.y
+
+        if ((buttonLeft <= mouse[0] <= (buttonLeft + buttonWidth)) and (buttonTop <= mouse[1] <= (buttonTop + buttonHeight))):
+            pygame.draw.rect(self.screen, (170, 170, 170), [buttonLeft, buttonTop, buttonWidth, buttonHeight])
+        else:
+            pygame.draw.rect(self.screen, (100, 100, 100), [buttonLeft, buttonTop, buttonWidth, buttonHeight])
+
+        self.screen.blit(text, textRect)
+
+        return pygame.Rect(buttonLeft, buttonTop, buttonWidth, buttonHeight)
+
+    def drawStandButton(self):
+        width = self.screen.get_width()
+        height = self.screen.get_height()
+
+        buttonWidth = 140
+        buttonHeight = 40
+
+        # pygame rect() structure: left, top, width, height
+        buttonLeft = width - (width / 20) - buttonWidth
+        buttonTop = (height / 2)
+
+        smallFont = pygame.font.SysFont('Arial', 35)
+        text = smallFont.render('Stand', True, (255, 255, 255))
+        textRect = text.get_rect(center=(buttonLeft + (buttonWidth/2), buttonTop + (buttonHeight/2))) #textRect to center the text within the pygame.rect drawn
+
+        mouse = pygame.mouse.get_pos()  # mouse[0] is mouse.x, mouse[1] is mouse.y
+
+        if ((buttonLeft <= mouse[0] <= (buttonLeft + buttonWidth)) and (buttonTop <= mouse[1] <= (buttonTop + buttonHeight))):
+            pygame.draw.rect(self.screen, (170, 170, 170), [buttonLeft, buttonTop, buttonWidth, buttonHeight])
+        else:
+            pygame.draw.rect(self.screen, (100, 100, 100), [buttonLeft, buttonTop, buttonWidth, buttonHeight])
+
+        self.screen.blit(text, textRect)
+
+        return pygame.Rect(buttonLeft, buttonTop, buttonWidth, buttonHeight)
+
+    def drawResults(self, results):
+        font = pygame.font.SysFont("Arial", 35)
+        width = self.screen.get_width()
+        height = self.screen.get_height()
+
+        endGameTextWidth = (width / 2)
+        endGameTextHeight = (height / 4)
+
+        for playerTuple in results:
+            p, score, result = playerTuple
+            if (result == 'w'):
+                # print(str(p.username) + " won with a score of " + str(score))
+                winString = str(p.username) + " won with a score of " + str(score)
+                winText = font.render(winString, True, (255, 255, 255))
+
+                self.screen.blit(winText, (endGameTextWidth, endGameTextHeight))
+                endGameTextHeight += ((height) - (height / 10)) # to separate lines of text
+            elif (result == 't'):
+                # print(str(p.username) + " tied with a score of " + str(score))
+                tieString = str(p.username) + " tied with a score of " + str(score)
+                tieText = font.render(tieString, True, (255, 255, 255))
+
+                self.screen.blit(tieText, (endGameTextWidth, endGameTextHeight))
+                endGameTextHeight += ((height) - (height / 10))
+
+    def drawPlayAgainButton(self):
+        width = self.screen.get_width()
+        height = self.screen.get_height()
+
+        buttonWidth = 140
+        buttonHeight = 40
+
+        # pygame rect() structure: left, top, width, height
+        buttonLeft = (width / 20)
+        buttonTop = (height / 2)
+
+        smallFont = pygame.font.SysFont('Arial', 35)
+        text = smallFont.render('Play Again', True, (255, 255, 255))
+        textRect = text.get_rect(center=(buttonLeft + (buttonWidth/2), buttonTop + (buttonHeight/2))) #textRect to center the text within the pygame.rect drawn
+
+        mouse = pygame.mouse.get_pos()  # mouse[0] is mouse.x, mouse[1] is mouse.y
+
+        if ((buttonLeft <= mouse[0] <= (buttonLeft + buttonWidth)) and (buttonTop <= mouse[1] <= (buttonTop + buttonHeight))):
+            pygame.draw.rect(self.screen, (170, 170, 170), [buttonLeft, buttonTop, buttonWidth, buttonHeight])
+        else:
+            pygame.draw.rect(self.screen, (100, 100, 100), [buttonLeft, buttonTop, buttonWidth, buttonHeight])
+
+        self.screen.blit(text, textRect)
+
+        return pygame.Rect(buttonLeft, buttonTop, buttonWidth, buttonHeight)
+
+    def drawExitButton(self):
+        width = self.screen.get_width()
+        height = self.screen.get_height()
+
+        buttonWidth = 140
+        buttonHeight = 40
+
+        # pygame rect() structure: left, top, width, height
+        buttonLeft = width - (width / 20) - buttonWidth
+        buttonTop = (height / 2)
+
+        smallFont = pygame.font.SysFont('Arial', 35)
+        text = smallFont.render('Exit', True, (255, 255, 255))
+        textRect = text.get_rect(center=(buttonLeft + (buttonWidth/2), buttonTop + (buttonHeight/2))) #textRect to center the text within the pygame.rect drawn
+
+        mouse = pygame.mouse.get_pos()  # mouse[0] is mouse.x, mouse[1] is mouse.y
+
+        if ((buttonLeft <= mouse[0] <= (buttonLeft + buttonWidth)) and (buttonTop <= mouse[1] <= (buttonTop + buttonHeight))):
+            pygame.draw.rect(self.screen, (170, 170, 170), [buttonLeft, buttonTop, buttonWidth, buttonHeight])
+        else:
+            pygame.draw.rect(self.screen, (100, 100, 100), [buttonLeft, buttonTop, buttonWidth, buttonHeight])
+
+        self.screen.blit(text, textRect)
+
+        return pygame.Rect(buttonLeft, buttonTop, buttonWidth, buttonHeight)
+
+
+    def resetAllStats(self):
+        for player in self.players:
+            player.gameScore_One = 0
+            player.gameScore_Two = 0
+            player.cards = []
+        self.actionablePlayers = []
